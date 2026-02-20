@@ -25,7 +25,10 @@ export default function ReportPage() {
   const [citizenName, setCitizenName] = useState("");
   const [citizenPhone, setCitizenPhone] = useState("");
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const [rewardPoints, setRewardPoints] = useState(0);
+  const [activeCommentId, setActiveCommentId] = useState<number | null>(null);
+  const [commentInput, setCommentInput] = useState("");
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -75,10 +78,6 @@ export default function ReportPage() {
       { name: 'Priya (Water)', phone: '9123456789' },
       { name: 'Amit (Sanitation)', phone: '9988776655' },
     ];
-    let mediaUrl: string | null = null;
-    if (mediaPreview) {
-      mediaUrl = mediaPreview;
-    }
     // Read current issues from localStorage for up-to-date workload
     let currentIssues: any[] = [];
     if (typeof window !== "undefined") {
@@ -106,7 +105,7 @@ export default function ReportPage() {
       id: Date.now(),
       issueType,
       description,
-      mediaUrl,
+      imagePreview: mediaPreview, // Save as imagePreview per requirements
       coordinates: location, // ensure location is included
       status: "Pending",
       assignedName: selected.name,
@@ -127,6 +126,7 @@ export default function ReportPage() {
     setLocation(null); // Reset location after submit
     if (fileInputRef.current) fileInputRef.current.value = "";
     setSubmitSuccess(true);
+    setShowSuccess(true);
     setTimeout(() => setSubmitSuccess(false), 4000);
     // Rewards logic
     const newPoints = rewardPoints + 50;
@@ -159,6 +159,42 @@ export default function ReportPage() {
       setIsLocating(false);
       setLoadingLoc(false);
     }
+  };
+
+  const handleVote = (id: number, type: 'up' | 'down') => {
+    const updated = issues.map(issue => {
+      if (issue.id === id) {
+        return {
+          ...issue,
+          upvotes: (issue.upvotes || 0) + (type === 'up' ? 1 : 0),
+          downvotes: (issue.downvotes || 0) + (type === 'down' ? 1 : 0)
+        };
+      }
+      return issue;
+    });
+    setIssues(updated);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("civic_issues", JSON.stringify(updated));
+    }
+  };
+
+  const handleAddComment = (id: number) => {
+    if (!commentInput.trim()) return;
+    const updated = issues.map(issue => {
+      if (issue.id === id) {
+        const comments = issue.comments || [];
+        return {
+          ...issue,
+          comments: [...comments, { text: commentInput, date: new Date().toISOString() }]
+        };
+      }
+      return issue;
+    });
+    setIssues(updated);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("civic_issues", JSON.stringify(updated));
+    }
+    setCommentInput("");
   };
 
   return (
@@ -295,7 +331,7 @@ export default function ReportPage() {
 
           {/* Live Map Visualizer */}
           <div>
-            <h3 className="text-lg font-bold mb-4">Your Location</h3>
+            <h3 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">📍 Your Location</h3>
             {location ? (
               <iframe
                 title="Citizen Location Map"
@@ -310,28 +346,119 @@ export default function ReportPage() {
             )}
           </div>
 
-          {/* Live City Activity Feed */}
+          {/* Civic Accountability Feed */}
           <div>
-            <h3 className="text-lg font-bold mb-4">Recent City Activity</h3>
+            <h3 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
+              📢 Civic Accountability Feed
+            </h3>
             {issues && issues.length > 0 ? (
-              <div className="flex flex-col gap-3">
-                {issues.slice().reverse().slice(0, 3).map((issue) => (
-                  <div key={issue.id} className="bg-slate-800 rounded-md p-3 border border-slate-700 flex flex-col gap-1">
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-slate-100 text-xs">{issue.issueType}</span>
-                      <span className={`px-2 py-0.5 rounded-sm text-xs font-bold ${
+              <div className="flex flex-col gap-5 max-h-[800px] overflow-y-auto pr-2">
+                {issues.slice().reverse().filter(i => i.status === 'Pending' || i.status === 'Resolved').map((issue) => {
+                  const upvotes = issue.upvotes || 0;
+                  const downvotes = issue.downvotes || 0;
+                  const comments = issue.comments || [];
+                  const isTrending = (downvotes + comments.length) >= 3;
+                  const isPressure = downvotes > (upvotes + 2) && issue.status === 'Pending';
+
+                  return (
+                  <div key={issue.id} className="bg-[#1a2234] rounded-lg p-5 border border-slate-700 flex flex-col gap-4 relative shadow-md">
+                    {/* Header */}
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-bold text-white text-lg">{issue.issueType}</span>
+                          {isTrending && (
+                            <span className="bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
+                              🔥 Trending
+                            </span>
+                          )}
+                        </div>
+                        {issue.coordinates && (
+                          <div className="flex items-center gap-2 mb-1 text-xs text-blue-400 font-medium">
+                            <span>📍 Lat {issue.coordinates.lat.toFixed(3)}, Lng {issue.coordinates.lng.toFixed(3)}</span>
+                            <button className="underline hover:text-blue-300 ml-1">View on Map</button>
+                          </div>
+                        )}
+                        <div className="text-sm text-slate-400">
+                          Assigned: <span className="text-slate-300 font-medium">{issue.assignedName}</span>
+                        </div>
+                      </div>
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide shadow-sm ${
                         issue.status === "Pending"
-                          ? "bg-yellow-100 text-yellow-700 border border-yellow-400"
-                          : "bg-green-100 text-green-700 border border-green-400"
+                          ? "bg-orange-500 text-slate-900"
+                          : "bg-emerald-500 text-slate-900"
                       }`}>
                         {issue.status}
                       </span>
                     </div>
-                    <div className="text-slate-300 text-xs truncate">
-                      {issue.description.length > 60 ? issue.description.slice(0, 60) + '…' : issue.description}
+
+                    {/* Description */}
+                    <div className="text-slate-100 text-base leading-relaxed">
+                      {issue.description}
                     </div>
+
+                    {/* Media Evidence */}
+                    {issue.imagePreview && (
+                      <div className="w-full my-1">
+                        {issue.imagePreview.startsWith("data:image") ? (
+                          <img src={issue.imagePreview} alt="Evidence" className="w-full h-48 object-cover rounded-lg border border-slate-700 my-3" />
+                        ) : (
+                          <video src={issue.imagePreview} controls className="w-full h-48 object-cover rounded-lg border border-slate-700 my-3" />
+                        )}
+                      </div>
+                    )}
+
+                    {/* Community Pressure Badge */}
+                    {isPressure && (
+                      <div className="bg-orange-900/40 border border-orange-500/50 rounded p-3 flex items-center gap-3">
+                        <span className="text-xl">⚠️</span>
+                        <span className="text-sm text-orange-100 font-medium">
+                          High Community Pressure: Authority response delayed.
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Actions Bar */}
+                    <div className="flex items-center justify-between border-t border-slate-700 pt-4 mt-1">
+                      <div className="flex items-center gap-4">
+                        <button onClick={() => handleVote(issue.id, 'up')} className="flex items-center gap-1.5 text-white hover:text-yellow-400 transition-colors text-sm font-medium">
+                          👍 {upvotes}
+                        </button>
+                        <button onClick={() => handleVote(issue.id, 'down')} className="flex items-center gap-1.5 text-white hover:text-yellow-400 transition-colors text-sm font-medium">
+                          👎 {downvotes}
+                        </button>
+                      </div>
+                      <button onClick={() => setActiveCommentId(activeCommentId === issue.id ? null : issue.id)} className="text-sm text-blue-400 hover:text-blue-300 font-bold">
+                        {comments.length > 0 ? `View ${comments.length} Reviews` : 'Review Work'}
+                      </button>
+                    </div>
+
+                    {/* Comments Section */}
+                    {(activeCommentId === issue.id || comments.length > 0) && (
+                      <div className="bg-slate-900/50 rounded p-3 mt-2 flex flex-col gap-2">
+                        {comments.map((c: any, idx: number) => (
+                          <div key={idx} className="text-xs border-b border-slate-700/50 last:border-0 pb-1 last:pb-0">
+                            <span className="text-slate-300">"{c.text}"</span>
+                          </div>
+                        ))}
+                        {activeCommentId === issue.id && (
+                          <div className="flex gap-2 mt-2">
+                            <input
+                              type="text"
+                              value={commentInput}
+                              onChange={(e) => setCommentInput(e.target.value)}
+                              placeholder="Write a review..."
+                              className="flex-1 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs text-white focus:border-blue-500 outline-none"
+                            />
+                            <button onClick={() => handleAddComment(issue.id)} className="bg-blue-600 text-white text-xs px-3 py-1 rounded hover:bg-blue-500">
+                              Post
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-                ))}
+                )})}
               </div>
             ) : (
               <div className="text-slate-400 text-xs">No recent activity.</div>
@@ -382,12 +509,12 @@ export default function ReportPage() {
                   </span>
                 </div>
                 <div className="text-slate-700">{issue.description}</div>
-                {issue.mediaUrl && (
+                {issue.imagePreview && (
                   <div className="mt-2">
-                    {issue.mediaUrl.startsWith("data:image") ? (
-                      <img src={issue.mediaUrl} alt="Media" className="max-h-32 rounded-sm shadow-sm" />
+                    {issue.imagePreview.startsWith("data:image") ? (
+                      <img src={issue.imagePreview} alt="Media" className="max-h-32 rounded-sm shadow-sm" />
                     ) : (
-                      <video src={issue.mediaUrl} controls className="max-h-32 rounded-sm shadow-sm" />
+                      <video src={issue.imagePreview} controls className="max-h-32 rounded-sm shadow-sm" />
                     )}
                   </div>
                 )}
@@ -412,6 +539,29 @@ export default function ReportPage() {
           )}
         </div>
       </div>
+
+      {/* Success Modal */}
+      {showSuccess && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-xl shadow-2xl border border-slate-200 p-8 max-w-sm w-full flex flex-col items-center text-center transform transition-all scale-100">
+            <div className="relative w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-5">
+              <div className="absolute inset-0 rounded-full bg-green-400 opacity-25 animate-ping"></div>
+              <span className="text-4xl relative z-10">✅</span>
+            </div>
+            <h3 className="text-2xl font-bold text-slate-900 mb-2">Issue Reported Successfully!</h3>
+            <p className="text-slate-600 mb-6 leading-relaxed">
+              Thank you for your contribution.<br/>
+              You have earned <span className="font-bold text-green-600">50 Civic Points</span>! Check your wallet.
+            </p>
+            <button
+              onClick={() => setShowSuccess(false)}
+              className="w-full bg-slate-900 text-white font-bold py-3 rounded-lg hover:bg-slate-800 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

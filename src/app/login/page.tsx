@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 const AUTHORITIES = [
@@ -11,8 +11,19 @@ const AUTHORITIES = [
 export default function LoginPage() {
   const [officialId, setOfficialId] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const remembered = localStorage.getItem("remembered_user");
+      if (remembered) {
+        setOfficialId(remembered);
+        setRememberMe(true);
+      }
+    }
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,6 +33,11 @@ export default function LoginPage() {
     if (matched) {
       if (typeof window !== "undefined") {
         sessionStorage.setItem("auth_user", JSON.stringify(matched));
+        if (rememberMe) {
+          localStorage.setItem("remembered_user", officialId);
+        } else {
+          localStorage.removeItem("remembered_user");
+        }
       }
       router.push("/admin");
     } else {
@@ -50,6 +66,24 @@ export default function LoginPage() {
             className="bg-slate-50 border border-slate-300 rounded-md p-2 text-slate-900 focus:ring-blue-600 focus:border-blue-600"
             required
           />
+          <div className="flex items-center justify-between text-sm mt-1">
+            <label className="flex items-center gap-2 text-slate-600 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="rounded border-slate-300 text-blue-600 focus:ring-blue-600 w-4 h-4"
+              />
+              Remember Me
+            </label>
+            <button
+              type="button"
+              onClick={() => window.alert('Please contact the Municipal IT Department (Ext: 101) to reset your credentials')}
+              className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
+            >
+              Forgot Password?
+            </button>
+          </div>
           <button
             type="submit"
             className="bg-blue-600 text-white font-bold rounded-md px-4 py-2 mt-2 hover:bg-blue-700 transition-all"
