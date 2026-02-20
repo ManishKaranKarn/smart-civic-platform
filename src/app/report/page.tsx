@@ -6,8 +6,13 @@ import { useState, useEffect, useRef } from "react";
 const ISSUE_TYPES = [
   "Pothole",
   "Water Leakage",
-  "Broken Streetlight",
   "Garbage",
+  "Street Light",
+  "Sewage/Drainage",
+  "Public Park/Property",
+  "Traffic Signal",
+  "Noise Complaint",
+  "Illegal Construction",
 ];
 
 export default function ReportPage() {
@@ -84,23 +89,17 @@ export default function ReportPage() {
       const stored = localStorage.getItem("civic_issues");
       currentIssues = stored ? JSON.parse(stored) : [];
     }
-    // Calculate workload for each authority
-    const workload: Record<string, number> = {};
-    authorities.forEach(a => { workload[a.name] = 0; });
-    currentIssues.forEach(issue => {
-      if (issue.assignedName && workload.hasOwnProperty(issue.assignedName)) {
-        workload[issue.assignedName]++;
-      }
-    });
-    // Find authority with lowest workload
-    let min = Infinity;
+
+    // Authority Assignment Logic
     let selected = authorities[0];
-    for (const a of authorities) {
-      if (workload[a.name] < min) {
-        min = workload[a.name];
-        selected = a;
-      }
+    if (["Pothole", "Street Light", "Traffic Signal", "Illegal Construction"].includes(issueType)) {
+      selected = authorities.find(a => a.name.includes("Roads")) || authorities[0];
+    } else if (["Water Leakage", "Sewage/Drainage"].includes(issueType)) {
+      selected = authorities.find(a => a.name.includes("Water")) || authorities[1];
+    } else if (["Garbage", "Public Park/Property", "Noise Complaint"].includes(issueType)) {
+      selected = authorities.find(a => a.name.includes("Sanitation")) || authorities[2];
     }
+
     const newIssue = {
       id: Date.now(),
       issueType,

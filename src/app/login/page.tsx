@@ -45,6 +45,19 @@ export default function LoginPage() {
     }
   };
 
+  const handleGuestLogin = () => {
+    if (typeof window !== "undefined") {
+      const guestUser = {
+        id: "guest",
+        name: "Guest Auditor",
+        role: "guest",
+        phone: "0000000000",
+      };
+      sessionStorage.setItem("auth_user", JSON.stringify(guestUser));
+      router.push("/admin");
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
       <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-8 w-full max-w-md flex flex-col items-center">
@@ -89,6 +102,13 @@ export default function LoginPage() {
             className="bg-blue-600 text-white font-bold rounded-md px-4 py-2 mt-2 hover:bg-blue-700 transition-all"
           >
             Login
+          </button>
+          <button
+            type="button"
+            onClick={handleGuestLogin}
+            className="w-full mt-2 border border-slate-400 text-slate-600 font-semibold rounded-md px-4 py-2 hover:bg-slate-800 hover:text-white transition-all"
+          >
+            Demo Guest Access
           </button>
         </form>
         {error && <div className="text-red-600 mt-4 text-sm font-medium">{error}</div>}

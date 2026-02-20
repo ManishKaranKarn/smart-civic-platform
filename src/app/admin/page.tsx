@@ -28,7 +28,7 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'feedback'>('dashboard');
 
   // Helper: Calculate priority and sort
-  const getPrioritizedIssues = (allIssues: any[], userName: string) => {
+  const getPrioritizedIssues = (allIssues: any[], user: any) => {
     const counts: Record<string, number> = {};
     allIssues.forEach((i: any) => {
       if (i.coordinates && i.issueType) {
@@ -37,8 +37,12 @@ export default function AdminDashboard() {
       }
     });
 
-    return allIssues
-      .filter((i: any) => i.assignedName === userName)
+    // Filter based on role: Guest sees all, others see assigned
+    const filtered = (user && user.role === "guest")
+      ? allIssues
+      : allIssues.filter((i: any) => i.assignedName === user?.name);
+
+    return filtered
       .map((i: any) => {
         const key = i.coordinates && i.issueType ? `${i.coordinates.lat}-${i.coordinates.lng}-${i.issueType}` : "";
         const count = counts[key] || 0;
@@ -106,7 +110,7 @@ export default function AdminDashboard() {
     if (typeof window !== "undefined" && authUser) {
       const stored = localStorage.getItem("civic_issues");
       const allIssues = stored ? JSON.parse(stored) : [];
-      const userIssues = getPrioritizedIssues(allIssues, authUser.name);
+      const userIssues = getPrioritizedIssues(allIssues, authUser);
       setIssues(userIssues);
       setPerformance(calculatePerformance(userIssues));
     }
@@ -119,7 +123,7 @@ export default function AdminDashboard() {
         if (typeof window !== "undefined" && authUser) {
           const stored = localStorage.getItem("civic_issues");
           const allIssues = stored ? JSON.parse(stored) : [];
-          const userIssues = getPrioritizedIssues(allIssues, authUser.name);
+          const userIssues = getPrioritizedIssues(allIssues, authUser);
           setIssues(userIssues);
           setPerformance(calculatePerformance(userIssues));
           setNewIssueNotification(true);
@@ -148,7 +152,7 @@ export default function AdminDashboard() {
     );
 
     localStorage.setItem("civic_issues", JSON.stringify(updatedAll));
-    const userIssues = getPrioritizedIssues(updatedAll, authUser.name);
+    const userIssues = getPrioritizedIssues(updatedAll, authUser);
     setIssues(userIssues);
     setPerformance(calculatePerformance(userIssues));
   };
@@ -163,7 +167,7 @@ export default function AdminDashboard() {
     );
 
     localStorage.setItem("civic_issues", JSON.stringify(updatedAll));
-    const userIssues = getPrioritizedIssues(updatedAll, authUser.name);
+    const userIssues = getPrioritizedIssues(updatedAll, authUser);
     setIssues(userIssues);
     setPerformance(calculatePerformance(userIssues));
   };
@@ -181,7 +185,7 @@ export default function AdminDashboard() {
     );
 
     localStorage.setItem("civic_issues", JSON.stringify(updatedAll));
-    const userIssues = getPrioritizedIssues(updatedAll, authUser.name);
+    const userIssues = getPrioritizedIssues(updatedAll, authUser);
     setIssues(userIssues);
     setPerformance(calculatePerformance(userIssues));
   };
@@ -221,7 +225,9 @@ export default function AdminDashboard() {
         </Link>
         {authUser && (
           <div className="flex items-center gap-2">
-            <span className="text-slate-700 font-semibold text-sm">Welcome, {authUser.name}</span>
+            <span className="text-slate-700 font-semibold text-sm">
+              {authUser.role === "guest" ? "Welcome, Guest Auditor (Master View)" : `Welcome, ${authUser.name}`}
+            </span>
             <div className="flex items-center gap-1 bg-yellow-100 px-2 py-0.5 rounded-full border border-yellow-200">
               <span className="text-yellow-600 text-xs font-bold">⭐ {performance.stars}</span>
             </div>
