@@ -25,8 +25,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-50 text-slate-800`}
       >
+        {/* Official Trust Banner */}
+        <div className="bg-slate-900 text-white text-xs py-1 px-4 w-full flex items-center justify-center">
+          🏛️ Official Civic Services Portal of the Municipal Corporation
+        </div>
         {children}
       </body>
     </html>
